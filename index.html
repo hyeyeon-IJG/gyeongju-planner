@@ -198,6 +198,75 @@
     .dist-note{font-size:10px;color:var(--gray);text-align:center;margin-top:10px;line-height:1.5;}
     .dist-kakao-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:10px;border-radius:10px;background:#FEE500;border:none;color:#3C1E1E;font-size:13px;font-weight:600;cursor:pointer;margin-top:8px;font-family:inherit;}
     .dist-kakao-btn:active{opacity:0.85;}
+
+    /* ── 토스트 ── */
+    .toast{position:fixed;bottom:calc(80px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%) translateY(20px);background:#3d2410;color:#f5e8d0;padding:10px 18px;border-radius:99px;font-size:12px;font-weight:500;opacity:0;transition:all 0.3s;z-index:200;white-space:nowrap;pointer-events:none;}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+
+    /* 카카오 검색 결과 */
+    .kakao-result-item {
+      padding:10px 12px; cursor:pointer; border-bottom:1px solid #f0e8d4;
+      display:flex; align-items:flex-start; gap:8px;
+    }
+    .kakao-result-item:last-child { border-bottom:none; }
+    .kakao-result-item:active { background:#fff8f0; }
+    .kakao-result-name { font-size:13px; font-weight:500; color:#3d2410; }
+    .kakao-result-addr { font-size:11px; color:#9a8878; margin-top:2px; }
+    .kakao-result-cat  { font-size:10px; color:#c4773a; margin-top:1px; }
+    /* 기본 장소 vs 추가 장소 구분 */
+    .place-item.default-place .place-name::after{content:' ✦';font-size:9px;color:var(--gold);}
+
+    /* ── 동선 편집 ── */
+    .ri { cursor:pointer; transition:background 0.15s; }
+    .ri:active { background:var(--gray-lt); }
+    .ri.selected { background:#fff8f0; border-left:3px solid var(--warm); }
+    .ri-change-bar {
+      display:none; padding:8px 12px 10px;
+      background:#fff8f0; border-top:1px solid var(--border);
+      gap:8px; align-items:center;
+    }
+    .ri-change-bar.show { display:flex; }
+    .ri-change-btn {
+      flex:1; padding:7px 0; border-radius:8px;
+      background:var(--warm); border:none; color:#fff;
+      font-size:12px; font-weight:500; cursor:pointer; font-family:inherit;
+    }
+    .ri-change-btn.cancel {
+      background:none; border:1px solid var(--border-md);
+      color:var(--gray);
+    }
+
+    /* ── 장소 선택 모달 ── */
+    .swap-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:150; display:none; justify-content:flex-end; align-items:flex-end; }
+    .swap-overlay.open { display:flex; }
+    .swap-modal { background:var(--paper); border-radius:20px 20px 0 0; width:100%; max-width:390px; margin:0 auto; max-height:75dvh; display:flex; flex-direction:column; }
+    .swap-modal-hdr { padding:16px 16px 10px; flex-shrink:0; }
+    .swap-modal-handle { width:36px; height:4px; border-radius:2px; background:var(--border-md); margin:0 auto 14px; }
+    .swap-modal-hdr h3 { font-size:15px; font-weight:600; color:var(--dark); margin-bottom:3px; }
+    .swap-modal-hdr p  { font-size:11px; color:var(--gray); }
+    .swap-list { overflow-y:auto; flex:1; padding:0 14px 24px; }
+    .swap-item {
+      display:flex; align-items:center; gap:10px;
+      padding:10px 12px; border-radius:10px;
+      border:1px solid var(--border); background:var(--paper);
+      margin-bottom:8px; cursor:pointer; transition:border-color 0.15s;
+    }
+    .swap-item:active { border-color:var(--warm); background:#fff8f0; }
+    .swap-type-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+    .swap-info { flex:1; min-width:0; }
+    .swap-name { font-size:13px; font-weight:500; color:var(--dark); }
+    .swap-meta { font-size:11px; color:var(--gray); margin-top:2px; }
+    .swap-dist { text-align:right; flex-shrink:0; }
+    .swap-dist-walk { font-size:12px; font-weight:500; color:var(--dark); }
+    .swap-dist-car  { font-size:10px; color:var(--gray); margin-top:1px; }
+    .swap-dist-km   { font-size:10px; color:var(--gray); }
+    .swap-cancel-btn {
+      margin:0 14px 14px; padding:11px; border-radius:10px;
+      border:1px solid var(--border-md); background:none;
+      color:var(--gray); font-size:13px; cursor:pointer; font-family:inherit;
+      flex-shrink:0;
+    }
   </style>
 </head>
 <body>
@@ -389,14 +458,43 @@
   <i class="ti ti-plus" aria-hidden="true"></i>
 </button>
 
+<!-- 토스트 -->
+<div class="toast" id="toast"></div>
+
+
+<!-- ═══ 동선 장소 교체 모달 ═══ -->
+<div class="swap-overlay" id="swap-overlay" onclick="closeSwapOutside(event)">
+  <div class="swap-modal">
+    <div class="swap-modal-hdr">
+      <div class="swap-modal-handle"></div>
+      <h3 id="swap-title">어디로 바꿀까요?</h3>
+      <p id="swap-sub">내 장소에서 선택하세요 · 현재 장소와의 거리 포함</p>
+    </div>
+    <div class="swap-list" id="swap-list"></div>
+    <button class="swap-cancel-btn" onclick="closeSwap()">취소</button>
+  </div>
+</div>
+
 <!-- ═══ 추가 모달 ═══ -->
 <div class="modal-overlay" id="modal-overlay" onclick="closeModalOutside(event)">
   <div class="modal">
     <div class="modal-handle"></div>
     <h3>장소 추가</h3>
 
-    <label class="field-label">이름</label>
-    <input class="field-input" id="inp-name" placeholder="예: 향택 경주" type="text"/>
+    <!-- 이름 검색 -->
+    <label class="field-label">장소 이름 검색</label>
+    <div style="position:relative;margin-bottom:6px;">
+      <input class="field-input" id="inp-name" placeholder="예: 향택 경주" type="text"
+        oninput="onNameInput()" style="margin-bottom:0;padding-right:40px;"/>
+      <div id="search-spinner" style="display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:14px;color:#9a8878;">⏳</div>
+    </div>
+    <!-- 카카오 검색 결과 드롭다운 -->
+    <div id="kakao-results" style="display:none;background:#fff;border:1px solid #e8dcc0;border-radius:10px;margin-bottom:10px;overflow:hidden;max-height:200px;overflow-y:auto;"></div>
+    <!-- 선택된 위치 표시 -->
+    <div id="selected-loc" style="display:none;background:#edf5e8;border-radius:8px;padding:7px 10px;margin-bottom:10px;font-size:11px;color:#2a5228;display:flex;align-items:center;gap:6px;">
+      <i class="ti ti-map-pin-check"></i>
+      <span id="selected-loc-txt"></span>
+    </div>
 
     <label class="field-label">메모 (메뉴, 위치 등)</label>
     <input class="field-input" id="inp-memo" placeholder="예: 육회비빔밥 · 황리단길" type="text"/>
@@ -426,20 +524,11 @@
         <input class="field-input" id="inp-close" placeholder="21:00" type="text"/>
       </div>
     </div>
-    <div style="background:#fef3e2;border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:11px;color:#7a4828;display:flex;align-items:flex-start;gap:6px;">
-      <i class="ti ti-map-pin" style="flex-shrink:0;margin-top:1px;"></i>
-      <div>거리 계산을 위해 좌표를 입력하면 정확해요.<br>카카오맵에서 장소 검색 → 공유 → 위도·경도 확인</div>
-    </div>
-    <div class="field-row">
-      <div>
-        <label class="field-label">위도 (선택)</label>
-        <input class="field-input" id="inp-lat" placeholder="35.8371" type="number" step="0.0001"/>
-      </div>
-      <div>
-        <label class="field-label">경도 (선택)</label>
-        <input class="field-input" id="inp-lng" placeholder="129.2091" type="number" step="0.0001"/>
-      </div>
-    </div>
+
+    <!-- 숨겨진 좌표 필드 -->
+    <input type="hidden" id="inp-lat"/>
+    <input type="hidden" id="inp-lng"/>
+    <input type="hidden" id="inp-addr"/>
 
     <button class="act-btn" onclick="addPlace()">저장하기</button>
     <button class="act-btn outline" onclick="closeModal()" style="margin-top:6px;">취소</button>
@@ -470,7 +559,7 @@ const FIXED_PLACES = {
   hyangtek: {name:'향택 경주',    lat:35.8371,lng:129.2091},
 };
 
-const SCHED_D1 = [
+let SCHED_D1 = [
   {time:'10:00',key:'station',  name:'경주역 도착',       sub:'KTX 하차',              dot:'s',badge:'bgray', badgeTxt:'출발',   tags:[]},
   {time:'10:30',key:'world',    name:'경주월드',           sub:'놀이공원 · 차량 15분',  dot:'', badge:'bpurp', badgeTxt:'~13:00', tags:['bnone|현장 웨이팅만']},
   {time:'13:00',key:'hotel',    name:'가야미니호텔 체크인', sub:'황리단길 근처 · 차량 20분',dot:'h',badge:'bbook',badgeTxt:'예약됨',tags:[]},
@@ -481,7 +570,7 @@ const SCHED_D1 = [
   {time:'19:30',key:'soejeong', name:'쇠전뭉티기',         sub:'육회 · 갈비찜 · 저녁',  dot:'f',badge:'bopen', badgeTxt:'16:00~', tags:['bnone|현장 웨이팅만']},
   {time:'21:30',key:'hotel',    name:'숙소 복귀',          sub:'도보 10분',             dot:'h',badge:'bgray', badgeTxt:'귀숙',   tags:[],last:true},
 ];
-const SCHED_D2 = [
+let SCHED_D2 = [
   {time:'08:30',key:'dongsong', name:'동성식당',  sub:'아침 · 백반정식 · 도보 5분', dot:'f',badge:'bopen', badgeTxt:'09:00~',     tags:['bnone|현장 웨이팅만']},
   {time:'10:00',key:'onmok',    name:'온목당',    sub:'배추전 · 국밥 · 황리단길',   dot:'f',badge:'bwait', badgeTxt:'웨이팅 예상', tags:['bcatch|캐치테이블','bwait|주말 혼잡']},
   {time:'11:30',key:'hyangmisa',name:'향미사',    sub:'대기 중 인근 카페',          dot:'c',badge:'bopen', badgeTxt:'여유 예상',   tags:['bnone|현장 웨이팅만']},
@@ -512,20 +601,138 @@ function swDay(d) {
   document.getElementById('d2').style.display = d===2?'block':'none';
 }
 
-// ── 루트 렌더 ──
+// ── 현재 선택된 동선 아이템 ──
+let selectedRouteDay = null;
+let selectedRouteIdx = null;
+
+// ── 루트 렌더 (클릭 가능) ──
 function renderRoute(items, id, currentKey) {
-  document.getElementById(id).innerHTML = items.map((item,i) => {
-    const isLast = i===items.length-1;
-    const isNow  = item.key===currentKey;
-    const tags = (item.tags||[]).map(t=>{const[c,txt]=t.split('|');return`<span class="bdg ${c}">${txt}</span>`;}).join('');
-    return `<div class="ri${isNow?' now':''}">
-      <div class="rt">${item.time}</div>
-      <div class="dc"><div class="dot ${item.dot} on"></div>${!isLast?'<div class="dline"></div>':''}</div>
-      <div class="ri-info"><div class="ri-name">${item.name}</div><div class="ri-sub">${item.sub}</div>${tags?`<div class="ri-tags">${tags}</div>`:''}</div>
-      <span class="bdg ${item.badge}">${item.badgeTxt}</span>
+  const day = id === 'route-d1' ? 1 : 2;
+  document.getElementById(id).innerHTML = items.map((item, i) => {
+    const isLast = i === items.length - 1;
+    const isNow  = item.key === currentKey;
+    const isSel  = selectedRouteDay === day && selectedRouteIdx === i;
+    const tags   = (item.tags||[]).map(t => { const [c,txt]=t.split('|'); return `<span class="bdg ${c}">${txt}</span>`; }).join('');
+    return `<div>
+      <div class="ri${isNow?' now':''}${isSel?' selected':''}" onclick="toggleRouteItem(${day},${i})">
+        <div class="rt">${item.time}</div>
+        <div class="dc"><div class="dot ${item.dot} on"></div>${!isLast?'<div class="dline"></div>':''}</div>
+        <div class="ri-info">
+          <div class="ri-name">${item.name}</div>
+          <div class="ri-sub">${item.sub}</div>
+          ${tags?`<div class="ri-tags">${tags}</div>`:''}
+        </div>
+        <span class="bdg ${item.badge}">${item.badgeTxt}</span>
+      </div>
+      <div class="ri-change-bar${isSel?' show':''}" id="chbar-${day}-${i}">
+        <button class="ri-change-btn cancel" onclick="clearRouteSelect(event)">취소</button>
+        <button class="ri-change-btn" onclick="openSwap(${day},${i},event)">✎ 장소 변경</button>
+      </div>
     </div>`;
   }).join('');
 }
+
+function toggleRouteItem(day, idx) {
+  const sameItem = selectedRouteDay === day && selectedRouteIdx === idx;
+  clearRouteSelectSilent();
+  if (!sameItem) {
+    selectedRouteDay = day; selectedRouteIdx = idx;
+    reRenderRoute();
+  }
+}
+
+function clearRouteSelect(e) { if(e) e.stopPropagation(); clearRouteSelectSilent(); reRenderRoute(); }
+function clearRouteSelectSilent() { selectedRouteDay = null; selectedRouteIdx = null; }
+
+function reRenderRoute() {
+  const curKey = null; // 현재 위치 강조는 GPS 업데이트 시에만
+  renderRoute(SCHED_D1, 'route-d1', curKey);
+  renderRoute(SCHED_D2, 'route-d2', curKey);
+}
+
+// ── 동선 장소 교체 ──
+function openSwap(day, idx, e) {
+  if(e) e.stopPropagation();
+  const item = (day===1?SCHED_D1:SCHED_D2)[idx];
+  const curPlace = FIXED_PLACES[item.key];
+
+  document.getElementById('swap-title').textContent = `"${item.name}" 을 바꿀 장소 선택`;
+  document.getElementById('swap-sub').textContent = '내 장소 목록 · 현재 장소와의 거리 표시';
+
+  const typeColor = {food:'#c0392b', cafe:'#3d6b3a', spot:'#c4773a', etc:'#9a8878'};
+  const waitLabel = {none:'현장만', catch:'캐치테이블', naver:'네이버 예약'};
+
+  const places = Object.entries(allPlaces).filter(([k,p]) => k !== item.fbKey);
+
+  const listEl = document.getElementById('swap-list');
+  if (!places.length) {
+    listEl.innerHTML = '<div style="text-align:center;padding:24px;color:#9a8878;font-size:13px;">내 장소를 먼저 추가해주세요</div>';
+  } else {
+    // 거리 계산 후 정렬
+    const withDist = places.map(([k,p]) => {
+      const d = (curPlace && p.lat && p.lng)
+        ? dist(curPlace.lat, curPlace.lng, p.lat, p.lng) * 1.35
+        : null;
+      return { k, p, d };
+    }).sort((a,b) => (a.d??9999) - (b.d??9999));
+
+    listEl.innerHTML = withDist.map(({k, p, d}) => {
+      const walkMin = d ? Math.round(d/4*60) : null;
+      const carMin  = d ? Math.round(d/30*60) : null;
+      const fmtT = m => m < 60 ? m+'분' : Math.floor(m/60)+'h '+m%60+'m';
+      const fmtD = km => km < 1 ? Math.round(km*1000)+'m' : km.toFixed(1)+'km';
+      return `<div class="swap-item" onclick="applySwap(${day},${idx},'${k}')">
+        <div class="swap-type-dot" style="background:${typeColor[p.type]||'#9a8878'};"></div>
+        <div class="swap-info">
+          <div class="swap-name">${p.name}</div>
+          <div class="swap-meta">${p.memo||''} · ${waitLabel[p.wait]||'현장만'}${p.open?' · '+p.open:''}</div>
+        </div>
+        <div class="swap-dist">
+          ${d !== null
+            ? `<div class="swap-dist-walk">🚶 ${fmtT(walkMin)}</div>
+               <div class="swap-dist-car">🚗 ${fmtT(carMin)}</div>
+               <div class="swap-dist-km">${fmtD(d)}</div>`
+            : '<div class="swap-dist-km">거리 미등록</div>'}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  document.getElementById('swap-overlay').classList.add('open');
+}
+
+function applySwap(day, idx, fbKey) {
+  const sched = day === 1 ? SCHED_D1 : SCHED_D2;
+  const p = allPlaces[fbKey];
+  if (!p) return;
+  const typeToWaitTag = {catch:'bcatch|캐치테이블', naver:'bnone|네이버 예약', none:'bnone|현장 웨이팅만'};
+  const typeToWait = p.wait && p.wait !== 'none' ? [typeToWaitTag[p.wait]] : ['bnone|현장 웨이팅만'];
+  const typeToFoodDot = {food:'f', cafe:'c', spot:'', etc:'s'};
+
+  // 기존 아이템에서 시간·last만 유지, 나머지 교체
+  const orig = sched[idx];
+  sched[idx] = {
+    ...orig,
+    key:      fbKey,
+    fbKey:    fbKey,
+    name:     p.name,
+    sub:      p.memo || '',
+    dot:      typeToFoodDot[p.type] || '',
+    badge:    'bopen',
+    badgeTxt: p.open ? p.open+'~' : '영업중',
+    tags:     typeToWait,
+  };
+  // FIXED_PLACES에도 임시 등록 (GPS 계산용)
+  if (p.lat && p.lng) FIXED_PLACES[fbKey] = { name:p.name, lat:p.lat, lng:p.lng };
+
+  closeSwap();
+  clearRouteSelectSilent();
+  reRenderRoute();
+  showToast(`"${p.name}"으로 변경됐어요 ✦`);
+}
+
+function closeSwap() { document.getElementById('swap-overlay').classList.remove('open'); }
+function closeSwapOutside(e) { if(e.target===document.getElementById('swap-overlay')) closeSwap(); }
 
 // ── Firebase 장소 목록 렌더 ──
 function renderPlaces(data) {
@@ -533,35 +740,45 @@ function renderPlaces(data) {
   const keys = Object.keys(allPlaces);
   const el = document.getElementById('places-list');
 
-  // 스탯 업데이트
   const total = keys.length;
   const onsite = keys.filter(k=>allPlaces[k].wait==='none').length;
-  document.getElementById('stat-total').textContent = total + 9; // 고정 장소 9개 포함
+  document.getElementById('stat-total').textContent = total;
   document.getElementById('stat-onsite').textContent = onsite;
 
-  // 웨이팅 탭 현장 목록 업데이트
   renderWaitOnsite(data);
 
   if (keys.length === 0) {
-    el.innerHTML = `<div class="empty-state"><i class="ti ti-map-pin-off" aria-hidden="true"></i>아직 추가한 장소가 없어요<br><span style="font-size:12px;margin-top:6px;display:block;">오른쪽 아래 + 버튼을 눌러 추가해보세요</span></div>`;
+    el.innerHTML = '<div class="loading"><i class="ti ti-loader" style="font-size:20px;display:block;margin-bottom:6px;"></i>불러오는 중...</div>';
     return;
   }
 
   const typeColor = {food:'#c0392b', cafe:'#3d6b3a', spot:'#c4773a', etc:'#9a8878'};
-  const typeLabel = {food:'식당', cafe:'카페', spot:'관광', etc:'기타'};
   const waitLabel = {none:'현장 웨이팅만', catch:'캐치테이블', naver:'네이버 예약'};
 
-  el.innerHTML = `<div class="rcard">${keys.map(k => {
+  const defaultKeys = keys.filter(k => allPlaces[k].isDefault);
+  const customKeys  = keys.filter(k => !allPlaces[k].isDefault);
+
+  const renderItem = (k) => {
     const p = allPlaces[k];
-    return `<div class="place-item">
-      <div class="place-type-dot" style="background:${typeColor[p.type]||'#9a8878'};"></div>
-      <div class="place-info">
-        <div class="place-name">${p.name}</div>
-        <div class="place-meta">${p.memo||''}${p.open?` · ${p.open}${p.close?'–'+p.close:''}`:''} · ${waitLabel[p.wait]||'현장만'}</div>
-      </div>
-      <button class="place-del" onclick="delPlace('${k}')" aria-label="삭제"><i class="ti ti-trash" aria-hidden="true"></i></button>
-    </div>`;
-  }).join('')}</div>`;
+    return '<div class="place-item' + (p.isDefault?' default-place':'') + '" id="pi-' + k + '" onclick="selectPlace(\'' + k + '\')">'
+      + '<div class="place-type-dot" style="background:' + (typeColor[p.type]||'#9a8878') + ';"></div>'
+      + '<div class="place-info">'
+      + '<div class="place-name">' + p.name + '</div>'
+      + '<div class="place-meta">' + (p.memo||'') + (p.open?' · '+p.open+(p.close?'–'+p.close:''):'') + ' · ' + (waitLabel[p.wait]||'현장만') + '</div>'
+      + '</div>'
+      + '<span class="sel-badge" id="sb-' + k + '" style="display:none;"></span>'
+      + '<button class="place-del" onclick="event.stopPropagation();delPlace(\'' + k + '\')" aria-label="삭제"><i class="ti ti-trash" aria-hidden="true"></i></button>'
+      + '</div>';
+  };
+
+  let out = '';
+  if (defaultKeys.length) {
+    out += '<div class="sec-ttl" style="margin-top:4px;">동선 장소 ✦</div><div class="rcard">' + defaultKeys.map(renderItem).join('') + '</div>';
+  }
+  if (customKeys.length) {
+    out += '<div class="sec-ttl">내가 추가한 장소</div><div class="rcard">' + customKeys.map(renderItem).join('') + '</div>';
+  }
+  el.innerHTML = out;
 }
 
 function renderWaitOnsite(data) {
@@ -576,10 +793,111 @@ function renderWaitOnsite(data) {
     </div>`).join('');
 }
 
-// ── Firebase 연동 ──
+// ── 동선 고정 장소 정의 (Firebase에 자동 추가될 데이터) ──
+const DEFAULT_PLACES = [
+  { name:'경주역',       memo:'KTX 하차 · 출발/도착 거점',        type:'etc',  wait:'none', open:'', close:'', lat:35.8150, lng:129.2200 },
+  { name:'경주월드',     memo:'놀이공원',                           type:'spot', wait:'none', open:'10:00', close:'18:00', lat:35.8365, lng:129.2822 },
+  { name:'가야미니호텔', memo:'숙소 · 황리단길 근처',               type:'etc',  wait:'none', open:'', close:'', lat:35.8414, lng:129.2161 },
+  { name:'향미사',       memo:'드립커피 · 티라미수',                type:'cafe', wait:'none', open:'10:00', close:'18:00', lat:35.8391, lng:129.2084 },
+  { name:'황리단길',     memo:'상점가 · 전통 골목',                 type:'spot', wait:'none', open:'', close:'', lat:35.8370, lng:129.2092 },
+  { name:'동궁과 월지',  memo:'신라 궁궐 · 야경 명소',             type:'spot', wait:'none', open:'09:00', close:'22:00', lat:35.8348, lng:129.2266 },
+  { name:'첨성대',       memo:'신라 천문대 · 야간 조명',           type:'spot', wait:'none', open:'09:00', close:'22:00', lat:35.8347, lng:129.2190 },
+  { name:'쇠전뭉티기',   memo:'육회 · 뭉티기 · 갈비찜',           type:'food', wait:'none', open:'16:00', close:'02:00', lat:35.8400, lng:129.2048 },
+  { name:'온목당',       memo:'배추전 · 국밥 · 비빔칼국수',        type:'food', wait:'catch', open:'11:00', close:'21:00', lat:35.8369, lng:129.2094 },
+  { name:'동성식당',     memo:'백반 · 정식',                        type:'food', wait:'none', open:'09:00', close:'20:00', lat:35.8395, lng:129.2115 },
+  { name:'향택 경주',    memo:'육회비빔밥 · 된장쌈밥',             type:'food', wait:'none', open:'11:00', close:'20:00', lat:35.8371, lng:129.2091 },
+  { name:'대릉원',       memo:'신라 고분군',                        type:'spot', wait:'none', open:'09:00', close:'22:00', lat:35.8381, lng:129.2108 },
+  { name:'빽가네 뒷고기',memo:'뒷고기 · 돼지갈비',                 type:'food', wait:'none', open:'11:00', close:'21:00', lat:35.8415, lng:129.2225 },
+  { name:'대성식당',     memo:'삼겹살 · 항정살',                   type:'food', wait:'none', open:'11:00', close:'19:30', lat:35.8414, lng:129.2288 },
+];
+
+// ── Firebase 연동 — 첫 실행 시 기본 장소 자동 추가 ──
+placesRef.once('value', snap => {
+  if (!snap.exists()) {
+    // Firebase가 비어있으면 기본 장소 일괄 추가
+    const batch = {};
+    DEFAULT_PLACES.forEach(p => {
+      const key = placesRef.push().key;
+      batch[key] = { ...p, createdAt: Date.now(), isDefault: true };
+    });
+    placesRef.set(batch).then(() => {
+      showToast('동선 장소 14곳이 자동으로 추가됐어요 🎉');
+    });
+  }
+});
+
 placesRef.on('value', snap => {
   renderPlaces(snap.val());
 });
+
+
+// ── 카카오 로컬 API ──
+const KAKAO_KEY = 'f1a52a022035cac5dea89aefe61475bc';
+let kakaoSearchTimer = null;
+let selectedLat = null, selectedLng = null, selectedAddr = '';
+
+async function searchKakao(query) {
+  if (!query || query.length < 2) { hideKakaoResults(); return; }
+  document.getElementById('search-spinner').style.display = 'block';
+  try {
+    const res = await fetch(
+      `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(query + ' 경주')}&size=5`,
+      { headers: { Authorization: `KakaoAK ${KAKAO_KEY}` } }
+    );
+    const data = await res.json();
+    showKakaoResults(data.documents || []);
+  } catch(e) {
+    hideKakaoResults();
+  } finally {
+    document.getElementById('search-spinner').style.display = 'none';
+  }
+}
+
+function showKakaoResults(docs) {
+  const el = document.getElementById('kakao-results');
+  if (!docs.length) { hideKakaoResults(); return; }
+  el.style.display = 'block';
+  el.innerHTML = docs.map((d,i) => `
+    <div class="kakao-result-item" onclick="selectKakaoPlace(${i})">
+      <i class="ti ti-map-pin" style="font-size:14px;color:#c4773a;flex-shrink:0;margin-top:2px;"></i>
+      <div>
+        <div class="kakao-result-name">${d.place_name}</div>
+        <div class="kakao-result-addr">${d.road_address_name || d.address_name}</div>
+        <div class="kakao-result-cat">${d.category_name?.split(' > ').slice(-1)[0] || ''}</div>
+      </div>
+    </div>`).join('');
+  // 결과를 전역에 임시 저장
+  window._kakaoDoc = docs;
+}
+
+function selectKakaoPlace(idx) {
+  const d = window._kakaoDoc[idx];
+  document.getElementById('inp-name').value = d.place_name;
+  selectedLat  = parseFloat(d.y);
+  selectedLng  = parseFloat(d.x);
+  selectedAddr = d.road_address_name || d.address_name;
+  document.getElementById('inp-lat').value = selectedLat;
+  document.getElementById('inp-lng').value = selectedLng;
+  document.getElementById('inp-addr').value = selectedAddr;
+  hideKakaoResults();
+  const locEl = document.getElementById('selected-loc');
+  document.getElementById('selected-loc-txt').textContent = selectedAddr;
+  locEl.style.display = 'flex';
+}
+
+function hideKakaoResults() {
+  document.getElementById('kakao-results').style.display = 'none';
+}
+
+function onNameInput() {
+  // 선택된 좌표 초기화 (이름 바꾸면 재검색)
+  selectedLat = null; selectedLng = null;
+  document.getElementById('selected-loc').style.display = 'none';
+  clearTimeout(kakaoSearchTimer);
+  kakaoSearchTimer = setTimeout(() => {
+    searchKakao(document.getElementById('inp-name').value.trim());
+  }, 400);
+}
 
 function addPlace() {
   const name = document.getElementById('inp-name').value.trim();
@@ -589,6 +907,7 @@ function addPlace() {
   const place = {
     name,
     memo:  document.getElementById('inp-memo').value.trim(),
+    addr:  document.getElementById('inp-addr').value || '',
     type:  selectedType,
     wait:  selectedWait,
     open:  document.getElementById('inp-open').value.trim(),
@@ -600,7 +919,14 @@ function addPlace() {
   placesRef.push(place).then(() => {
     closeModal();
     sw('places');
+    showToast(`"${name}" 저장됐어요 ✦`);
   }).catch(e => alert('저장 실패: ' + e.message));
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
 }
 
 function delPlace(key) {
@@ -617,6 +943,10 @@ function openModal() {
   document.getElementById('inp-close').value='';
   document.getElementById('inp-lat').value='';
   document.getElementById('inp-lng').value='';
+  document.getElementById('inp-addr').value='';
+  document.getElementById('selected-loc').style.display='none';
+  hideKakaoResults();
+  selectedLat=null; selectedLng=null; selectedAddr='';
   selectedType='food'; selectedWait='none';
   document.querySelectorAll('.type-btn').forEach(b=>b.classList.toggle('active',b.dataset.type==='food'));
   document.querySelectorAll('.wait-btn').forEach(b=>b.classList.toggle('active',b.dataset.wait==='none'));
